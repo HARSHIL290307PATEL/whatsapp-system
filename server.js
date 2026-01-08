@@ -7,11 +7,8 @@ const cron = require('node-cron');
 const fs = require('fs');
 
 const app = express();
-app.use(cors({
-    origin: "*",
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"]
-}));
+app.use(cors()); // Allow all origins, all methods, all headers
+app.options('*', cors()); // Handle preflight requests explicitly
 app.use(express.json());
 
 const sessions = {};   // userId -> whatsapp client
