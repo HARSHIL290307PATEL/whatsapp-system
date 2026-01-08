@@ -62,6 +62,11 @@ function createSession(userId) {
    API ROUTES
 =========================== */
 
+// Health Check
+app.get('/', (req, res) => {
+    res.send('WhatsApp Backend is Running 🚀');
+});
+
 // Start new session
 app.post('/api/session/start', (req, res) => {
     const { userId } = req.body;
