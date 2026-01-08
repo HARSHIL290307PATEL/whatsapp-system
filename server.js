@@ -4,8 +4,18 @@ const { Client, LocalAuth } = require("whatsapp-web.js");
 const QRCode = require("qrcode");
 
 const app = express();
-app.use(cors()); // Permissive CORS
-app.options('*', cors());
+// app.use(cors()); // Permissive CORS
+app.use(cors({
+    origin: [
+        "https://hostel-hub-admin-3c54.vercel.app",
+        "https://hostel-hub-admin-opal.vercel.app",
+        "http://localhost:5173",
+        "http://localhost:4173"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true // Optional, but good practice
+}));
 app.use(express.json());
 
 let qrCodeData = null;
