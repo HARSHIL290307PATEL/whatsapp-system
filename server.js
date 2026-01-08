@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
-// const { Client, LocalAuth } = require('whatsapp-web.js');
-// const QRCode = require('qrcode');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const QRCode = require('qrcode');
 const cors = require('cors');
 const cron = require('node-cron');
 const fs = require('fs');
@@ -78,10 +78,10 @@ app.get('/', (req, res) => {
 // Start new session
 app.post('/api/session/start', (req, res) => {
     const { userId } = req.body;
-    // if (!sessions[userId]) {
-    //    createSession(userId);
-    // }
-    console.log("Session start requested (simulation)");
+    if (!sessions[userId]) {
+        createSession(userId);
+    }
+    // console.log("Session start requested (simulation)");
     res.json({ success: true, message: "Session started" });
 });
 
@@ -113,7 +113,8 @@ app.post('/api/send', async (req, res) => {
         await sessions[userId].sendMessage(chatId, message);
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("❌ Send Error:", err);
+        res.status(500).json({ error: err.message, stack: err.stack });
     }
 });
 
