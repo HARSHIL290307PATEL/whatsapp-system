@@ -34,106 +34,103 @@ let isReady = false;
 // Initialize WhatsApp Client
 const client = new Client({
     authStrategy: new LocalAuth(),
-    // Initialize WhatsApp Client
-    const client = new Client({
-        authStrategy: new LocalAuth(),
-        puppeteer: {
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--single-process', // Critical for 512MB environments
-                '--disable-gpu',
-                '--renderer-process-limit=1', // Limit renderers
-                '--disable-extensions'
-            ]
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process', // Critical for 512MB environments
+            '--disable-gpu',
+            '--renderer-process-limit=1', // Limit renderers
+            '--disable-extensions'
+        ]
+    }
+});
+
+client.on("qr", async (qr) => {
+    console.log("📲 QR RECEIVED");
+    global.qrCode = await qrcode.toDataURL(qr);
+});
+
+client.on("ready", () => {
+    console.log("✅ WhatsApp Connected");
+    isReady = true;
+});
+
+client.on("disconnected", () => {
+    console.log("❌ WhatsApp Disconnected");
+    isReady = false;
+    global.qrCode = null;
+});
+
+// Start client
+client.initialize();
+
+// ==================== APIs ====================
+
+// Test Route
+app.get("/", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "WhatsApp API is running fine (v5: OOM Fix + Cleanup)"
+    });
+});
+
+// 📌 Get QR Code
+app.get("/api/qr", (req, res) => {
+    if (isReady) {
+        return res.json({ success: true, message: "Already connected" });
+    }
+    if (global.qrCode) {
+        return res.json({ success: true, qr: global.qrCode });
+    }
+    res.json({ success: false, message: "QR not generated yet" });
+});
+
+// 📌 Check Connection Status
+app.get("/api/status", (req, res) => {
+    res.json({
+        success: true,
+        connected: isReady
+    });
+});
+
+// 📌 Send Message API
+app.post("/api/send", async (req, res) => {
+    const { number, message } = req.body;
+
+    if (!isReady) {
+        return res.status(400).json({ success: false, message: "WhatsApp not connected" });
+    }
+
+    if (!number || !message) {
+        return res.status(400).json({ success: false, message: "Number and message required" });
+    }
+
+    try {
+        const sanitized_number = number.toString().replace(/[- )(]/g, "").replace(/\+/g, "");
+        const internal_id = await client.getNumberId(sanitized_number);
+
+        if (!internal_id) {
+            const chatId = `${sanitized_number}@c.us`;
+            await client.sendMessage(chatId, message);
+        } else {
+            await client.sendMessage(internal_id._serialized, message);
         }
-    });
 
-    client.on("qr", async (qr) => {
-        console.log("📲 QR RECEIVED");
-        global.qrCode = await qrcode.toDataURL(qr);
-    });
+        res.json({ success: true, message: "Message sent" });
+    } catch (err) {
+        console.error("❌ Send Error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
-    client.on("ready", () => {
-        console.log("✅ WhatsApp Connected");
-        isReady = true;
-    });
-
-    client.on("disconnected", () => {
-        console.log("❌ WhatsApp Disconnected");
-        isReady = false;
-        global.qrCode = null;
-    });
-
-    // Start client
-    client.initialize();
-
-    // ==================== APIs ====================
-
-    // Test Route
-    app.get("/", (req, res) => {
-        res.status(200).json({
-            success: true,
-            message: "WhatsApp API is running fine (v3: Kick Render)"
-        });
-    });
-
-    // 📌 Get QR Code
-    app.get("/api/qr", (req, res) => {
-        if (isReady) {
-            return res.json({ success: true, message: "Already connected" });
-        }
-        if (global.qrCode) {
-            return res.json({ success: true, qr: global.qrCode });
-        }
-        res.json({ success: false, message: "QR not generated yet" });
-    });
-
-    // 📌 Check Connection Status
-    app.get("/api/status", (req, res) => {
-        res.json({
-            success: true,
-            connected: isReady
-        });
-    });
-
-    // 📌 Send Message API
-    app.post("/api/send", async (req, res) => {
-        const { number, message } = req.body;
-
-        if (!isReady) {
-            return res.status(400).json({ success: false, message: "WhatsApp not connected" });
-        }
-
-        if (!number || !message) {
-            return res.status(400).json({ success: false, message: "Number and message required" });
-        }
-
-        try {
-            const sanitized_number = number.toString().replace(/[- )(]/g, "").replace(/\+/g, "");
-            const internal_id = await client.getNumberId(sanitized_number);
-
-            if (!internal_id) {
-                const chatId = `${sanitized_number}@c.us`;
-                await client.sendMessage(chatId, message);
-            } else {
-                await client.sendMessage(internal_id._serialized, message);
-            }
-
-            res.json({ success: true, message: "Message sent" });
-        } catch (err) {
-            console.error("❌ Send Error:", err);
-            res.status(500).json({ success: false, error: err.message });
-        }
-    });
-
-    // Start Server
-    const PORT = process.env.PORT || 4000;
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`🚀 Server running on port ${PORT}`);
-    });
+// Start Server
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
