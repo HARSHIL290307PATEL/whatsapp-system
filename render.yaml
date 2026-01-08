@@ -4,6 +4,3 @@ services:
     env: docker
     plan: free
     branch: main
-    envVars:
-      - key: PORT
-        value: 4000
