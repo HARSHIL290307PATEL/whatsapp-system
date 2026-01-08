@@ -53,7 +53,7 @@ client.initialize();
 
 // Health Check
 app.get('/', (req, res) => {
-    res.send('WhatsApp Backend is Running 🚀');
+    res.send('WhatsApp Backend is Running 🚀 (v2: Single Client)');
 });
 
 // 1️⃣ Get QR Code (for login)
