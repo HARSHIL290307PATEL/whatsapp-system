@@ -58,6 +58,14 @@ function createSession(userId) {
     sessions[userId] = client;
 }
 
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+});
+
+process.on('unhandledRejection', (reason, p) => {
+    console.error('UNHANDLED REJECTION:', reason);
+});
+
 /* ===========================
    API ROUTES
 =========================== */
