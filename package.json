@@ -3,14 +3,19 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "start:247": "pm2 start server.js --name whatsapp-backend --time",
+    "stop:247": "pm2 stop whatsapp-backend",
+    "restart:247": "pm2 restart whatsapp-backend",
+    "logs:247": "pm2 logs whatsapp-backend"
   },
   "dependencies": {
-    "express": "^4.19.0",
-    "whatsapp-web.js": "^1.26.0",
-    "qrcode": "^1.5.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "node-cron": "^3.0.3"
+    "express": "^4.19.0",
+    "node-cron": "^3.0.3",
+    "pm2": "^6.0.14",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.26.0"
   }
 }
