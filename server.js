@@ -1,28 +1,31 @@
 const express = require("express");
 const cors = require("cors");
 const { Client, LocalAuth } = require("whatsapp-web.js");
-const QRCode = require("qrcode");
+const qrcode = require("qrcode");
 
 const app = express();
-// app.use(cors()); // Permissive CORS
+
+// ✅ ENABLE CORS FIRST
 app.use(cors({
     origin: [
-        "https://hostel-hub-admin-3c54.vercel.app",
-        "https://hostel-hub-admin-opal.vercel.app",
+        "http://localhost:8080",
+        "http://localhost:4000",
         "http://localhost:5173",
-        "http://localhost:4173"
+        "https://hostel-hub-admin-3c54.vercel.app",
+        "https://hostel-hub-admin-opal.vercel.app"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true // Optional, but good practice
+    credentials: true
 }));
+
 app.use(express.json());
 
-let qrCodeData = null;
+let isReady = false;
 
-// Create WhatsApp Client
+// Initialize WhatsApp Client
 const client = new Client({
-    authStrategy: new LocalAuth(), // saves session
+    authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
         args: [
@@ -37,81 +40,81 @@ const client = new Client({
     }
 });
 
-// QR event
 client.on("qr", async (qr) => {
     console.log("📲 QR RECEIVED");
-    qrCodeData = await QRCode.toDataURL(qr);
+    global.qrCode = await qrcode.toDataURL(qr);
 });
 
-// Ready event
 client.on("ready", () => {
-    console.log("✅ WhatsApp Connected!");
-    qrCodeData = null;
+    console.log("✅ WhatsApp Connected");
+    isReady = true;
 });
 
-// Disconnected event
 client.on("disconnected", () => {
-    console.log("❌ WhatsApp Disconnected!");
-    qrCodeData = null;
+    console.log("❌ WhatsApp Disconnected");
+    isReady = false;
+    global.qrCode = null;
 });
 
 // Start client
 client.initialize();
 
-
 // ==================== APIs ====================
 
-// Health Check
-app.get('/', (req, res) => {
-    res.send('WhatsApp Backend is Running 🚀 (v2: Single Client)');
+// Test Route
+app.get("/", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "WhatsApp API is running fine"
+    });
 });
 
-// 1️⃣ Get QR Code (for login)
+// 📌 Get QR Code
 app.get("/api/qr", (req, res) => {
-    if (!qrCodeData) {
-        if (client.info) {
-            return res.json({ status: "connected" });
-        }
-        return res.json({ status: "waiting" });
+    if (isReady) {
+        return res.json({ success: true, message: "Already connected" });
     }
-    res.json({ status: "qr", qr: qrCodeData });
+    if (global.qrCode) {
+        return res.json({ success: true, qr: global.qrCode });
+    }
+    res.json({ success: false, message: "QR not generated yet" });
 });
 
-// 2️⃣ Check Connection
+// 📌 Check Connection Status
 app.get("/api/status", (req, res) => {
-    const isConnected = client.info ? true : false;
-    res.json({ connected: isConnected });
+    res.json({
+        success: true,
+        connected: isReady
+    });
 });
 
-// 3️⃣ Send Message
-// 3️⃣ Send Message
+// 📌 Send Message API
 app.post("/api/send", async (req, res) => {
     const { number, message } = req.body;
 
+    if (!isReady) {
+        return res.status(400).json({ success: false, message: "WhatsApp not connected" });
+    }
+
     if (!number || !message) {
-        return res.status(400).json({ error: "Number and message required" });
+        return res.status(400).json({ success: false, message: "Number and message required" });
     }
 
     try {
-        // 1. Sanitize number (remove + and spaces)
         const sanitized_number = number.toString().replace(/[- )(]/g, "").replace(/\+/g, "");
-
-        // 2. Get the correct WhatsApp ID
         const internal_id = await client.getNumberId(sanitized_number);
 
         if (!internal_id) {
-            // Fallback for some numbers if getNumberId fails but the number is valid
             const chatId = `${sanitized_number}@c.us`;
             await client.sendMessage(chatId, message);
-            res.json({ success: true, message: "Message sent (Fallback)" });
         } else {
             await client.sendMessage(internal_id._serialized, message);
-            res.json({ success: true, message: "Message sent" });
         }
 
+        res.json({ success: true, message: "Message sent" });
     } catch (err) {
         console.error("❌ Send Error:", err);
-        res.status(500).json({ error: "Failed to send message", details: err.message });
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
