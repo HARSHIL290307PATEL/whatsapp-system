@@ -65,7 +65,7 @@ client.initialize();
 app.get("/", (req, res) => {
     res.status(200).json({
         success: true,
-        message: "WhatsApp API is running fine"
+        message: "WhatsApp API is running fine (v3: Kick Render)"
     });
 });
 
