@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "start:247": "pm2 start server.js --name whatsapp-backend --time",
+    "start": "node --max-old-space-size=384 server.js",
+    "start:247": "pm2 start server.js --name whatsapp-backend --time --node-args='--max-old-space-size=384'",
     "stop:247": "pm2 stop whatsapp-backend",
     "restart:247": "pm2 restart whatsapp-backend",
     "logs:247": "pm2 logs whatsapp-backend"
