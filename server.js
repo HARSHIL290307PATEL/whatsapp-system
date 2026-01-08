@@ -74,6 +74,7 @@ app.get("/api/status", (req, res) => {
 });
 
 // 3️⃣ Send Message
+// 3️⃣ Send Message
 app.post("/api/send", async (req, res) => {
     const { number, message } = req.body;
 
@@ -82,11 +83,24 @@ app.post("/api/send", async (req, res) => {
     }
 
     try {
-        const chatId = number.includes("@c.us") ? number : `${number}@c.us`;
-        await client.sendMessage(chatId, message);
-        res.json({ success: true, message: "Message sent" });
+        // 1. Sanitize number (remove + and spaces)
+        const sanitized_number = number.toString().replace(/[- )(]/g, "").replace(/\+/g, "");
+
+        // 2. Get the correct WhatsApp ID
+        const internal_id = await client.getNumberId(sanitized_number);
+
+        if (!internal_id) {
+            // Fallback for some numbers if getNumberId fails but the number is valid
+            const chatId = `${sanitized_number}@c.us`;
+            await client.sendMessage(chatId, message);
+            res.json({ success: true, message: "Message sent (Fallback)" });
+        } else {
+            await client.sendMessage(internal_id._serialized, message);
+            res.json({ success: true, message: "Message sent" });
+        }
+
     } catch (err) {
-        console.error(err);
+        console.error("❌ Send Error:", err);
         res.status(500).json({ error: "Failed to send message", details: err.message });
     }
 });
