@@ -5,6 +5,14 @@ const qrcode = require("qrcode");
 
 const app = express();
 
+// Global Error Handlers (Prevent Crash)
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+});
+process.on('unhandledRejection', (reason, p) => {
+    console.error('UNHANDLED REJECTION:', reason);
+});
+
 // ✅ ENABLE CORS FIRST
 app.use(cors({
     origin: [
