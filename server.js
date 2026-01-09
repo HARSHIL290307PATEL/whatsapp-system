@@ -103,6 +103,8 @@ app.get("/api/status", (req, res) => {
 app.post("/api/send", async (req, res) => {
     const { number, message } = req.body;
 
+    console.log(`📩 Send Request: Number="${number}", Message="${message?.substring(0, 10)}..."`);
+
     if (!isReady) {
         return res.status(400).json({ success: false, message: "WhatsApp not connected" });
     }
@@ -112,20 +114,44 @@ app.post("/api/send", async (req, res) => {
     }
 
     try {
-        const sanitized_number = number.toString().replace(/[- )(]/g, "").replace(/\+/g, "");
-        const internal_id = await client.getNumberId(sanitized_number);
+        // Strict Sanitization: Remove ALL non-digit characters
+        let sanitized_number = number.toString().replace(/\D/g, "");
+
+        if (!sanitized_number) {
+            return res.status(400).json({ success: false, message: "Invalid phone number (no digits)" });
+        }
+
+        // Auto-append 91 if it's a 10-digit number (Likely Indian format)
+        if (sanitized_number.length === 10) {
+            sanitized_number = "91" + sanitized_number;
+        }
+
+        console.log(`🚀 Processing number: ${sanitized_number}`);
+
+        let internal_id;
+        try {
+            internal_id = await client.getNumberId(sanitized_number);
+        } catch (e) {
+            console.warn("⚠️ getNumberId failed, falling back to chatId construction", e.message);
+        }
 
         if (!internal_id) {
             const chatId = `${sanitized_number}@c.us`;
+            console.log(`⚠️ Using constructed chatId: ${chatId}`);
             await client.sendMessage(chatId, message);
         } else {
+            console.log(`✅ Using internal_id: ${internal_id._serialized}`);
             await client.sendMessage(internal_id._serialized, message);
         }
 
         res.json({ success: true, message: "Message sent" });
     } catch (err) {
         console.error("❌ Send Error:", err);
-        res.status(500).json({ success: false, error: err.message });
+        res.status(500).json({
+            success: false,
+            error: err.message || "Unknown Error",
+            details: "Failed to send message via WhatsApp client"
+        });
     }
 });
 
