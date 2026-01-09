@@ -1,6 +1,0 @@
-services:
-  - type: web
-    name: whatsapp-backend
-    env: docker
-    plan: free
-    branch: main
