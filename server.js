@@ -23,7 +23,7 @@ process.on("unhandledRejection", (reason) => {
 app.use(cors({
     origin: "*", // Allow all origins (Public API)
     methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"]
 }));
 
 app.use(express.json());
@@ -173,7 +173,7 @@ app.post("/api/send", async (req, res) => {
         let numberId;
         try {
             numberId = await client.getNumberId(sanitized);
-        } catch {}
+        } catch { }
 
         if (numberId) {
             await client.sendMessage(numberId._serialized, message);
