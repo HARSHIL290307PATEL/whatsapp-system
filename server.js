@@ -21,16 +21,9 @@ process.on("unhandledRejection", (reason) => {
    CORS
 ======================= */
 app.use(cors({
-    origin: [
-        "http://localhost:8080",
-        "http://localhost:4000",
-        "http://localhost:5173",
-        "https://hostel-hub-admin-3c54.vercel.app",
-        "https://hostel-hub-admin-opal.vercel.app"
-    ],
+    origin: "*", // Allow all origins (Public API)
     methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 app.use(express.json());
