@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
+const qrcodeTerminal = require("qrcode-terminal");
 
 const app = express();
 
@@ -53,6 +54,11 @@ const client = new Client({
 
 client.on("qr", async (qr) => {
     console.log("📲 QR RECEIVED");
+
+    // Generate QR in terminal
+    qrcodeTerminal.generate(qr, { small: true });
+    console.log("👉 Scan the QR code above to login!");
+
     global.qrCode = await qrcode.toDataURL(qr);
 });
 
