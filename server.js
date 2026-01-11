@@ -6,15 +6,20 @@ const qrcodeTerminal = require("qrcode-terminal");
 
 const app = express();
 
-// Global Error Handlers (Prevent Crash)
-process.on('uncaughtException', (err) => {
-    console.error('UNCAUGHT EXCEPTION:', err);
-});
-process.on('unhandledRejection', (reason, p) => {
-    console.error('UNHANDLED REJECTION:', reason);
+/* =======================
+   GLOBAL ERROR HANDLERS
+======================= */
+process.on("uncaughtException", (err) => {
+    console.error("🔥 UNCAUGHT EXCEPTION:", err);
 });
 
-// ✅ ENABLE CORS FIRST
+process.on("unhandledRejection", (reason) => {
+    console.error("🔥 UNHANDLED REJECTION:", reason);
+});
+
+/* =======================
+   CORS
+======================= */
 app.use(cors({
     origin: [
         "http://localhost:8080",
@@ -30,74 +35,112 @@ app.use(cors({
 
 app.use(express.json());
 
-let isReady = false;
+/* =======================
+   API REQUEST LOGGER
+======================= */
+app.use((req, res, next) => {
+    const time = new Date().toISOString();
+    console.log(`📡 [${time}] ${req.method} ${req.originalUrl}`);
 
-// Initialize WhatsApp Client
+    if (req.body && Object.keys(req.body).length > 0) {
+        console.log("📦 BODY:", req.body);
+    }
+
+    next();
+});
+
+/* =======================
+   WHATSAPP CLIENT
+======================= */
+let isReady = false;
+global.qrCode = null;
+
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
         args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process', // Critical for 512MB environments
-            '--disable-gpu',
-            '--renderer-process-limit=1', // Limit renderers
-            '--disable-extensions'
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--no-first-run",
+            "--no-zygote",
+            "--single-process",
+            "--disable-gpu",
+            "--renderer-process-limit=1",
+            "--disable-extensions"
         ]
     }
 });
 
+/* =======================
+   WHATSAPP EVENTS
+======================= */
 client.on("qr", async (qr) => {
-    console.log("📲 QR RECEIVED");
+    console.log("\n📲 QR RECEIVED — Scan with WhatsApp\n");
 
-    // Generate QR in terminal
+    // ✅ TERMINAL QR
     qrcodeTerminal.generate(qr, { small: true });
-    console.log("👉 Scan the QR code above to login!");
 
+    // ✅ FRONTEND QR
     global.qrCode = await qrcode.toDataURL(qr);
 });
 
 client.on("ready", () => {
-    console.log("✅ WhatsApp Connected");
+    console.log("\n✅ WhatsApp Connected & Ready\n");
     isReady = true;
 });
 
-client.on("disconnected", () => {
-    console.log("❌ WhatsApp Disconnected");
+client.on("authenticated", () => {
+    console.log("🔐 WhatsApp Authenticated");
+});
+
+client.on("auth_failure", (msg) => {
+    console.error("❌ WhatsApp Auth Failure:", msg);
+});
+
+client.on("loading_screen", (percent, message) => {
+    console.log(`⏳ WhatsApp Loading: ${percent}% - ${message}`);
+});
+
+client.on("disconnected", (reason) => {
+    console.log("❌ WhatsApp Disconnected:", reason);
     isReady = false;
     global.qrCode = null;
 });
 
-// Start client
+/* =======================
+   INIT CLIENT
+======================= */
 client.initialize();
 
-// ==================== APIs ====================
+/* =======================
+   ROUTES
+======================= */
 
-// Test Route
+// Health Check
 app.get("/", (req, res) => {
     res.status(200).json({
         success: true,
-        message: "WhatsApp API is running fine (v5: OOM Fix + Cleanup)"
+        message: "WhatsApp API running (QR + Logs Enabled)"
     });
 });
 
-// 📌 Get QR Code
+// Get QR
 app.get("/api/qr", (req, res) => {
     if (isReady) {
         return res.json({ success: true, message: "Already connected" });
     }
+
     if (global.qrCode) {
         return res.json({ success: true, qr: global.qrCode });
     }
+
     res.json({ success: false, message: "QR not generated yet" });
 });
 
-// 📌 Check Connection Status
+// Status
 app.get("/api/status", (req, res) => {
     res.json({
         success: true,
@@ -105,64 +148,62 @@ app.get("/api/status", (req, res) => {
     });
 });
 
-// 📌 Send Message API
+// Send Message
 app.post("/api/send", async (req, res) => {
     const { number, message } = req.body;
 
-    console.log(`📩 Send Request: Number="${number}", Message="${message?.substring(0, 10)}..."`);
+    console.log(`📩 SEND REQUEST → ${number}`);
 
     if (!isReady) {
-        return res.status(400).json({ success: false, message: "WhatsApp not connected" });
+        return res.status(400).json({
+            success: false,
+            message: "WhatsApp not connected"
+        });
     }
 
     if (!number || !message) {
-        return res.status(400).json({ success: false, message: "Number and message required" });
+        return res.status(400).json({
+            success: false,
+            message: "Number and message required"
+        });
     }
 
     try {
-        // Strict Sanitization: Remove ALL non-digit characters
-        let sanitized_number = number.toString().replace(/\D/g, "");
+        let sanitized = number.toString().replace(/\D/g, "");
 
-        if (!sanitized_number) {
-            return res.status(400).json({ success: false, message: "Invalid phone number (no digits)" });
+        if (sanitized.length === 10) {
+            sanitized = "91" + sanitized;
         }
 
-        // Auto-append 91 if it's a 10-digit number (Likely Indian format)
-        if (sanitized_number.length === 10) {
-            sanitized_number = "91" + sanitized_number;
-        }
+        console.log(`🚀 Sending to: ${sanitized}`);
 
-        console.log(`🚀 Processing number: ${sanitized_number}`);
-
-        let internal_id;
+        let numberId;
         try {
-            internal_id = await client.getNumberId(sanitized_number);
-        } catch (e) {
-            console.warn("⚠️ getNumberId failed, falling back to chatId construction", e.message);
-        }
+            numberId = await client.getNumberId(sanitized);
+        } catch {}
 
-        if (!internal_id) {
-            const chatId = `${sanitized_number}@c.us`;
-            console.log(`⚠️ Using constructed chatId: ${chatId}`);
-            await client.sendMessage(chatId, message);
+        if (numberId) {
+            await client.sendMessage(numberId._serialized, message);
         } else {
-            console.log(`✅ Using internal_id: ${internal_id._serialized}`);
-            await client.sendMessage(internal_id._serialized, message);
+            await client.sendMessage(`${sanitized}@c.us`, message);
         }
 
         res.json({ success: true, message: "Message sent" });
+
     } catch (err) {
-        console.error("❌ Send Error:", err);
+        console.error("❌ SEND ERROR:", err);
         res.status(500).json({
             success: false,
-            error: err.message || "Unknown Error",
-            details: "Failed to send message via WhatsApp client"
+            error: err.message
         });
     }
 });
 
-// Start Server
+/* =======================
+   SERVER START
+======================= */
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`\n🚀 Server running on port ${PORT}\n`);
 });
