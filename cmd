@@ -1,4 +1,1 @@
-wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-tar -xvzf ngrok-v3-stable-linux-amd64.tgz
-sudo mv ngrok /usr/local/bin
-ngrok version
+ngrok config add-authtoken 37F1ypxsTUsywvjVqwgJ5MROiRQ_7ZaFXao7CnJPinnJC1FPP
